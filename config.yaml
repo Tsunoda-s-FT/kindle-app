@@ -1,0 +1,17 @@
+# Kindle Capture Configuration
+
+browser:
+  chrome_profile: "/tmp/kindle-test-profile"  # Use temporary profile to avoid conflicts
+  headless: false
+  timeout: 30000  # milliseconds
+
+capture:
+  default_layout: "single"  # single or double
+  wait_strategy: "hybrid"  # location_change, fixed, or hybrid
+  wait_timeout: 3.0  # seconds
+  screenshot_format: "png"
+  output_dir: "./kindle-captures"
+
+pdf:
+  default_quality: 85  # JPEG quality (1-100)
+  default_resize: 1.0  # Resize ratio (0.1-1.0, 1.0 = no resize)
