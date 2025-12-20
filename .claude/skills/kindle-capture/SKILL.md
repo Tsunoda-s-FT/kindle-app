@@ -33,8 +33,8 @@ source venv/bin/activate
 # 依存パッケージをインストール
 pip install -r requirements.txt
 
-# Playwrightブラウザをインストール
-playwright install chromium
+# 注意: このツールはシステムのGoogle Chromeを使用します
+# Playwrightのブラウザインストールは不要です
 ```
 
 ## 基本的な使い方

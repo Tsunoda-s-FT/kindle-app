@@ -28,8 +28,8 @@ cd /Users/tsunoda/Development/kindle-app
 # 依存パッケージインストール
 pip install -r requirements.txt
 
-# Playwright Chromiumインストール
-playwright install chromium
+# 注意: このツールはシステムのGoogle Chromeを使用します
+# Playwrightのブラウザインストールは不要です
 ```
 
 ### 2. Kindleにログイン
@@ -144,17 +144,23 @@ pdf:
 
 ```
 kindle-app/
+├── .claude/
+│   ├── settings.local.json
+│   └── skills/
+│       └── kindle-capture/
+│           ├── SKILL.md           # Claude Code Skill定義
+│           ├── REFERENCE.md       # 詳細リファレンス
+│           └── EXAMPLES.md        # 使用例と会話例
 ├── src/
 │   ├── __init__.py
 │   ├── capture.py           # スクリーンショット取得
 │   ├── create_pdf.py         # PDF生成
 │   └── kindle_utils.py       # 共通ユーティリティ
-├── SKILL.md                  # Claude Code Skill定義
+├── examples/
+│   └── usage_examples.md     # コマンドライン使用例
 ├── requirements.txt          # 依存パッケージ
 ├── config.yaml               # 設定ファイル
 ├── README.md                 # このファイル
-├── examples/
-│   └── usage_examples.md     # 使用例
 └── kindle-captures/          # デフォルト出力先
     └── {ASIN}/
         ├── page_0001.png
