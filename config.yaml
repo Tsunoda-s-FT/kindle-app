@@ -1,12 +1,17 @@
 # Kindle Capture Configuration
 
 browser:
-  chrome_profile: "/tmp/kindle-test-profile"  # Use temporary profile to avoid conflicts
+  chrome_profile: "~/Library/Application Support/Google/Chrome"  # Use logged-in profile by default
+  fallback_profile: "~/Library/Application Support/Google/Chrome-Kindle"  # Fallback profile if locked
   headless: false
   timeout: 30000  # milliseconds
+  wait_for_login: true
+  login_timeout: 600000  # milliseconds
+  viewport_width: 3840  # 4K width
+  viewport_height: 2160  # 4K height
 
 capture:
-  default_layout: "single"  # single or double
+  default_layout: "double"  # single or double
   wait_strategy: "hybrid"  # location_change, fixed, or hybrid
   wait_timeout: 3.0  # seconds
   screenshot_format: "png"

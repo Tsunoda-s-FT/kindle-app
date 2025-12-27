@@ -25,10 +25,13 @@ def load_config(config_path: str = "config.yaml") -> dict:
     try:
         if os.path.exists(config_path):
             with open(config_path, 'r') as f:
-                return yaml.safe_load(f)
-        else:
-            logger.warning(f"Config file not found: {config_path}, using defaults")
-            return {}
+                data = yaml.safe_load(f) or {}
+                if isinstance(data, dict):
+                    return data
+                logger.warning("Config file is not a mapping, using defaults")
+                return {}
+        logger.warning(f"Config file not found: {config_path}, using defaults")
+        return {}
     except Exception as e:
         logger.error(f"Error loading config: {e}")
         return {}
@@ -166,15 +169,15 @@ def main():
     parser.add_argument(
         "--quality",
         type=int,
-        default=85,
-        help="JPEG quality if conversion needed (1-100, default: 85)"
+        default=None,
+        help="JPEG quality if conversion needed (1-100, default: config or 85)"
     )
 
     parser.add_argument(
         "--resize",
         type=float,
-        default=1.0,
-        help="Resize ratio (0.1-1.0, default: 1.0 = no resize)"
+        default=None,
+        help="Resize ratio (0.1-1.0, default: config or 1.0 = no resize)"
     )
 
     parser.add_argument(
@@ -185,25 +188,26 @@ def main():
 
     args = parser.parse_args()
 
+    # Load config
+    config = load_config(args.config)
+
+    # Get settings from config with CLI overrides
+    pdf_config = config.get('pdf', {})
+    quality = args.quality if args.quality is not None else pdf_config.get('default_quality', 85)
+    resize = args.resize if args.resize is not None else pdf_config.get('default_resize', 1.0)
+
     # Validate arguments
     if not os.path.isdir(args.input):
         print(f"❌ Error: Input directory not found: {args.input}")
         sys.exit(1)
 
-    if args.quality < 1 or args.quality > 100:
-        print(f"❌ Error: Quality must be between 1 and 100")
+    if quality < 1 or quality > 100:
+        print("❌ Error: Quality must be between 1 and 100")
         sys.exit(1)
 
-    if args.resize < 0.1 or args.resize > 1.0:
-        print(f"❌ Error: Resize ratio must be between 0.1 and 1.0")
+    if resize < 0.1 or resize > 1.0:
+        print("❌ Error: Resize ratio must be between 0.1 and 1.0")
         sys.exit(1)
-
-    # Load config
-    config = load_config(args.config)
-
-    # Get settings from config with CLI overrides
-    quality = args.quality or config.get('pdf', {}).get('default_quality', 85)
-    resize = args.resize if args.resize != 1.0 else config.get('pdf', {}).get('default_resize', 1.0)
 
     # Create PDF
     try:

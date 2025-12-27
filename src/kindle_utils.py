@@ -18,11 +18,15 @@ KINDLE_LIBRARY_URL = "https://read.amazon.co.jp/kindle-library"
 KINDLE_READER_URL = "https://read.amazon.co.jp/?asin={asin}"
 DEFAULT_OUTPUT_DIR = "./kindle-captures"
 DEFAULT_CHROME_PROFILE = "~/Library/Application Support/Google/Chrome"
+DEFAULT_FALLBACK_PROFILE = "~/Library/Application Support/Google/Chrome-Kindle"
 
 
 async def create_browser_context(
     profile_path: str = DEFAULT_CHROME_PROFILE,
-    headless: bool = False
+    headless: bool = False,
+    fallback_profile_path: Optional[str] = None,
+    viewport_width: int = 3840,
+    viewport_height: int = 2160
 ) -> Tuple[BrowserContext, any]:
     """
     Create Playwright browser context with Chrome profile.
@@ -39,7 +43,25 @@ async def create_browser_context(
     """
     from playwright.async_api import async_playwright
 
+    def _looks_like_profile_lock(error: Exception) -> bool:
+        message = str(error)
+        return "ProcessSingleton" in message or "profile is already in use" in message
+
+    async def _launch_context(user_data_dir: str) -> BrowserContext:
+        context = await playwright.chromium.launch_persistent_context(
+            user_data_dir=user_data_dir,
+            headless=headless,
+            channel="chrome",  # Use system Chrome
+            viewport={'width': viewport_width, 'height': viewport_height},
+            args=[
+                '--disable-blink-features=AutomationControlled',  # Hide automation
+                '--start-maximized',  # Start maximized
+            ]
+        )
+        return context
+
     profile_path = os.path.expanduser(profile_path)
+    fallback_profile_path = os.path.expanduser(fallback_profile_path) if fallback_profile_path else None
 
     logger.info(f"Launching browser with profile: {profile_path}")
     logger.info(f"Headless mode: {headless}")
@@ -47,22 +69,23 @@ async def create_browser_context(
     playwright = await async_playwright().start()
 
     try:
-        context = await playwright.chromium.launch_persistent_context(
-            user_data_dir=profile_path,
-            headless=headless,
-            channel="chrome",  # Use system Chrome
-            viewport={'width': 2560, 'height': 1440},  # 2K resolution viewport
-            args=[
-                '--disable-blink-features=AutomationControlled',  # Hide automation
-                '--start-maximized',  # Start maximized
-            ]
-        )
-
+        context = await _launch_context(profile_path)
         logger.info("Browser launched successfully")
-        logger.info("Viewport set to: 2560x1440 (2K)")
+        logger.info(f"Viewport set to: {viewport_width}x{viewport_height}")
         return context, playwright
 
     except Exception as e:
+        if fallback_profile_path and _looks_like_profile_lock(e):
+            logger.warning("Chrome profile is locked, retrying with fallback profile...")
+            logger.info(f"Launching browser with fallback profile: {fallback_profile_path}")
+            try:
+                context = await _launch_context(fallback_profile_path)
+                logger.info("Browser launched successfully (fallback profile)")
+                logger.info(f"Viewport set to: {viewport_width}x{viewport_height}")
+                return context, playwright
+            except Exception as fallback_error:
+                logger.error(f"Failed to launch fallback profile: {fallback_error}")
+
         logger.error(f"Failed to launch browser: {e}")
         logger.error("Make sure Chrome is not running and try again")
         await playwright.stop()
@@ -146,6 +169,40 @@ async def check_session_valid(page: Page) -> bool:
         return False
 
 
+async def detect_login_state(page: Page) -> str:
+    """
+    Detect login state for Kindle Web Reader.
+
+    Returns:
+        str: "logged_in", "login_required", or "unknown"
+    """
+    try:
+        current_url = page.url or ""
+        if "signin" in current_url or "login" in current_url:
+            return "login_required"
+
+        login_selectors = [
+            "#ap_email",
+            "#ap_password",
+            'input[type="email"]',
+            'input[type="password"]',
+        ]
+        for selector in login_selectors:
+            try:
+                if await page.query_selector(selector):
+                    return "login_required"
+            except Exception:
+                continue
+
+        has_renderer = await page.evaluate("typeof KindleRenderer !== 'undefined'")
+        if has_renderer:
+            return "logged_in"
+    except Exception:
+        pass
+
+    return "unknown"
+
+
 async def set_layout_mode(page: Page, mode: str = "single") -> bool:
     """
     Change Kindle reader layout mode.
@@ -157,26 +214,70 @@ async def set_layout_mode(page: Page, mode: str = "single") -> bool:
     Returns:
         bool: True if successful
     """
+    async def click_first(selectors: list[str]) -> bool:
+        for selector in selectors:
+            try:
+                await page.click(selector, timeout=5000)
+                return True
+            except Exception:
+                continue
+        return False
+
     try:
         logger.info(f"Setting layout mode to: {mode}")
 
-        # Click "Reader settings" button (Aa button)
-        await page.click('[aria-label="Reader settings"]', timeout=5000)
+        settings_selectors = [
+            '[aria-label="Reader settings"]',
+            '[aria-label="リーダー設定"]',
+            '[aria-label="表示設定"]',
+            'button:has-text("Aa")',
+        ]
+
+        if not await click_first(settings_selectors):
+            logger.warning("Reader settings button not found")
+            return False
+
         await page.wait_for_timeout(500)
 
-        # Select appropriate radio button
         if mode == "single":
-            await page.click('text="Single Column"', timeout=5000)
+            option_selectors = [
+                'text="Single Column"',
+                'text="単一列"',
+                'text="1列"',
+                'text="1 カラム"',
+                'text="1カラム"',
+            ]
         elif mode == "double":
-            await page.click('text="Two Columns"', timeout=5000)
+            option_selectors = [
+                'text="Two Columns"',
+                'text="見開き"',
+                'text="2列"',
+                'text="2 カラム"',
+                'text="2カラム"',
+            ]
         else:
             logger.warning(f"Unknown layout mode: {mode}, skipping")
             return False
 
+        if not await click_first(option_selectors):
+            logger.warning("Layout option not found")
+            return False
+
         await page.wait_for_timeout(300)
 
-        # Close settings panel
-        await page.click('button:has-text("Close")', timeout=5000)
+        close_selectors = [
+            'button:has-text("Close")',
+            'button:has-text("閉じる")',
+            'button:has-text("完了")',
+            'button:has-text("OK")',
+        ]
+
+        if not await click_first(close_selectors):
+            try:
+                await page.keyboard.press("Escape")
+            except Exception:
+                pass
+
         await page.wait_for_timeout(500)
 
         logger.info(f"Layout mode set to {mode}")
@@ -257,15 +358,33 @@ async def get_current_location(page: Page) -> dict:
         # Get text content from the page
         text = await page.evaluate("document.body.textContent")
 
-        # Parse location text (e.g., "Location 101 of 241 41%")
-        location_match = re.search(r'Location (\d+) of (\d+)\s+(\d+)%', text)
+        patterns = [
+            r'(?:Location|位置)\s*[:：]?\s*(\d+)\s*(?:of|/|の)\s*(\d+)\s*(\d+)\s*[％%]'
+        ]
 
-        if location_match:
-            return {
-                'current': int(location_match.group(1)),
-                'total': int(location_match.group(2)),
-                'percent': int(location_match.group(3))
-            }
+        for pattern in patterns:
+            location_match = re.search(pattern, text)
+            if location_match:
+                return {
+                    'current': int(location_match.group(1)),
+                    'total': int(location_match.group(2)),
+                    'percent': int(location_match.group(3))
+                }
+
+        # Fallback to KindleRenderer positions if text parsing fails
+        try:
+            current_pos = await page.evaluate("KindleRenderer.getPosition?.()")
+            total_pos = await page.evaluate("KindleRenderer.getMaximumPosition?.()")
+            if isinstance(current_pos, (int, float)) and isinstance(total_pos, (int, float)):
+                if current_pos > 0 and total_pos > 0:
+                    percent = int((current_pos / total_pos) * 100)
+                    return {
+                        'current': int(current_pos),
+                        'total': int(total_pos),
+                        'percent': percent
+                    }
+        except Exception:
+            pass
 
         logger.warning("Could not parse location from page")
         return {}
@@ -380,8 +499,9 @@ async def wait_for_page_load(
     """
     if strategy == "fixed":
         # Simple fixed timeout with spinner check
-        await wait_for_spinner_to_disappear(page, timeout=5.0)
-        await page.wait_for_timeout(2000)
+        spinner_timeout = max(5.0, timeout)
+        await wait_for_spinner_to_disappear(page, timeout=spinner_timeout)
+        await page.wait_for_timeout(int(timeout * 1000))
         return True
 
     elif strategy == "location_change":
@@ -390,8 +510,9 @@ async def wait_for_page_load(
             initial_location = await get_current_location(page)
             if not initial_location:
                 # Fallback to fixed wait
-                await wait_for_spinner_to_disappear(page, timeout=5.0)
-                await page.wait_for_timeout(2000)
+                spinner_timeout = max(5.0, timeout)
+                await wait_for_spinner_to_disappear(page, timeout=spinner_timeout)
+                await page.wait_for_timeout(int(timeout * 1000))
                 return True
 
             initial_current = initial_location.get('current', 0)
@@ -407,7 +528,8 @@ async def wait_for_page_load(
             )
 
             # Wait for spinner to disappear
-            await wait_for_spinner_to_disappear(page, timeout=5.0)
+            spinner_timeout = max(5.0, timeout)
+            await wait_for_spinner_to_disappear(page, timeout=spinner_timeout)
 
             # Additional settling time for images/fonts to load
             await page.wait_for_timeout(1000)
@@ -415,8 +537,9 @@ async def wait_for_page_load(
 
         except PlaywrightTimeoutError:
             logger.warning("Location change timeout, using fixed wait")
-            await wait_for_spinner_to_disappear(page, timeout=5.0)
-            await page.wait_for_timeout(2000)
+            spinner_timeout = max(5.0, timeout)
+            await wait_for_spinner_to_disappear(page, timeout=spinner_timeout)
+            await page.wait_for_timeout(int(timeout * 1000))
             return True
 
     else:  # hybrid (default)
@@ -444,7 +567,8 @@ async def wait_for_page_load(
                 await page.wait_for_timeout(500)
 
             # Wait for spinner to disappear (most important)
-            await wait_for_spinner_to_disappear(page, timeout=5.0)
+            spinner_timeout = max(5.0, timeout)
+            await wait_for_spinner_to_disappear(page, timeout=spinner_timeout)
 
             # Additional settling time for content to fully render
             await page.wait_for_timeout(1000)
@@ -452,6 +576,7 @@ async def wait_for_page_load(
 
         except Exception as e:
             logger.warning(f"Hybrid wait error: {e}, using fallback")
-            await wait_for_spinner_to_disappear(page, timeout=5.0)
-            await page.wait_for_timeout(2000)
+            spinner_timeout = max(5.0, timeout)
+            await wait_for_spinner_to_disappear(page, timeout=spinner_timeout)
+            await page.wait_for_timeout(int(timeout * 1000))
             return True

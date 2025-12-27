@@ -1,9 +1,6 @@
 ---
 name: kindle-capture
 description: Kindle Web ReaderからスクリーンショットをキャプチャしてPDF生成。書籍名やASIN指定でKindle本を自動PDF化。Kindleライブラリから書籍検索、PlaywrightでKindleページ自動取得、PNG画像からPDF変換、レイアウト設定（single/double）、範囲指定、品質調整、リサイズに対応。「githubの本」など曖昧な書籍名でも検索可能。書籍スクリーンショット取得と文書PDF化を効率化。
-agents:
-  - claude-code
-  - codex-cli
 ---
 
 # Kindle Capture Skill
@@ -46,11 +43,11 @@ pip install -r requirements.txt
 
 ```bash
 source venv/bin/activate
-python src/capture.py --asin <ASIN> --chrome-profile /tmp/kindle-test-profile
+python src/capture.py --asin <ASIN>
 ```
 
 書籍のASINコードを指定して、全ページのスクリーンショットを取得します。
-`--chrome-profile /tmp/kindle-test-profile` オプションで一時プロファイルを使用し、既存のChromeセッションとの競合を回避します。
+デフォルトはログイン済みの既存プロファイルを使用します。Chrome起動中でプロファイルロックが発生した場合は、自動的に `~/Library/Application Support/Google/Chrome-Kindle` にフォールバックします（初回ログインが必要）。
 
 ### ステップ2: PDF生成
 
@@ -69,15 +66,18 @@ python src/create_pdf.py --input ./kindle-captures/<ASIN>/
 - `--asin <ASIN>`: 書籍のASINコード（Amazon商品識別子）
 
 **主要オプション**:
-- `--chrome-profile <パス>`: Chromeプロファイルパス（推奨: `/tmp/kindle-test-profile`）
-  - 一時プロファイルを使用して既存のChromeセッションとの競合を回避
-- `--layout <single|double>`: レイアウトモード（デフォルト: single）
+- `--chrome-profile <パス>`: Chromeプロファイルパス（デフォルト: `~/Library/Application Support/Google/Chrome`）
+  - Chrome起動中でプロファイルロックが発生した場合は `~/Library/Application Support/Google/Chrome-Kindle` に自動フォールバック
+- `--layout <single|double>`: レイアウトモード（デフォルト: double）
   - `single`: シングルページ表示
   - `double`: 見開き（ダブルページ）表示
 - `--start <位置>`: キャプチャ開始位置（Kindleの位置番号）
 - `--end <位置>`: キャプチャ終了位置（Kindleの位置番号）
 - `--output <ディレクトリ>`: 出力先ディレクトリ（デフォルト: ./kindle-captures/{ASIN}/）
 - `--headless`: ヘッドレスモードで実行（デフォルト: false）
+- `--max-pages <数値>`: 取得ページ数の上限（デフォルト: 無制限）
+- `--viewport-width <数値>`: ブラウザのviewport幅（デフォルト: 3840）
+- `--viewport-height <数値>`: ブラウザのviewport高さ（デフォルト: 2160）
 
 ### create_pdf.py - PDF生成
 
@@ -99,7 +99,7 @@ python src/create_pdf.py --input ./kindle-captures/<ASIN>/
 source venv/bin/activate
 
 # 1. スクリーンショット取得
-python src/capture.py --asin B0DSKPTJM5 --chrome-profile /tmp/kindle-test-profile
+python src/capture.py --asin B0DSKPTJM5
 
 # 2. PDF生成
 python src/create_pdf.py --input ./kindle-captures/B0DSKPTJM5/
@@ -113,7 +113,7 @@ python src/create_pdf.py --input ./kindle-captures/B0DSKPTJM5/
 source venv/bin/activate
 
 # 位置1000から5000までをキャプチャ
-python src/capture.py --asin B0DSKPTJM5 --chrome-profile /tmp/kindle-test-profile --start 1000 --end 5000
+python src/capture.py --asin B0DSKPTJM5 --start 1000 --end 5000
 
 # PDF生成
 python src/create_pdf.py --input ./kindle-captures/B0DSKPTJM5/
@@ -127,7 +127,7 @@ python src/create_pdf.py --input ./kindle-captures/B0DSKPTJM5/
 source venv/bin/activate
 
 # 見開きモードでキャプチャ
-python src/capture.py --asin B0DSKPTJM5 --chrome-profile /tmp/kindle-test-profile --layout double
+python src/capture.py --asin B0DSKPTJM5 --layout double
 
 # PDF生成
 python src/create_pdf.py --input ./kindle-captures/B0DSKPTJM5/
@@ -141,7 +141,7 @@ python src/create_pdf.py --input ./kindle-captures/B0DSKPTJM5/
 source venv/bin/activate
 
 # 通常キャプチャ
-python src/capture.py --asin B0DSKPTJM5 --chrome-profile /tmp/kindle-test-profile
+python src/capture.py --asin B0DSKPTJM5
 
 # リサイズ＆圧縮してPDF生成
 python src/create_pdf.py --input ./kindle-captures/B0DSKPTJM5/ --resize 0.7 --quality 80
@@ -158,7 +158,7 @@ python src/create_pdf.py --input ./kindle-captures/B0DSKPTJM5/ --resize 0.7 --qu
 3. 検索バーにキーワードを入力
 4. 検索結果から書籍を選択
 5. URLからASINを抽出（例: `https://read.amazon.co.jp/?asin=B0DSKPTJM5`）
-6. `source venv/bin/activate && python src/capture.py --asin <ASIN> --chrome-profile /tmp/kindle-test-profile` を実行
+6. `source venv/bin/activate && python src/capture.py --asin <ASIN>` を実行
 7. `source venv/bin/activate && python src/create_pdf.py --input ./kindle-captures/<ASIN>/` を実行
 8. 完了報告
 
@@ -251,7 +251,7 @@ python src/create_pdf.py --input ./kindle-captures/B0DSKPTJM5/ --resize 0.7 --qu
 
 **対処法**:
 1. 手動でKindleライブラリから書籍のASINを確認
-2. `source venv/bin/activate && python src/capture.py --asin <ASIN> --chrome-profile /tmp/kindle-test-profile` で直接実行
+2. `source venv/bin/activate && python src/capture.py --asin <ASIN>` で直接実行
 
 ### セッション切れエラー
 
@@ -278,7 +278,7 @@ source venv/bin/activate
 python src/capture.py --asin <ASIN> --chrome-profile /tmp/kindle-test-profile
 ```
 
-**重要**: すべてのcapture.pyコマンドで `--chrome-profile /tmp/kindle-test-profile` オプションを使用することを推奨します。
+**補足**: 自動フォールバック後は初回ログインが必要です。
 
 **代替対処法**:
 1. 起動中のGoogle Chromeをすべて終了
@@ -308,7 +308,7 @@ capture:
 **原因**: capture.pyを実行せずにcreate_pdf.pyを実行した、またはディレクトリパスが間違っている
 
 **対処法**:
-1. 先に `source venv/bin/activate && python src/capture.py --asin <ASIN> --chrome-profile /tmp/kindle-test-profile` を実行
+1. 先に `source venv/bin/activate && python src/capture.py --asin <ASIN>` を実行（フォールバック時は初回ログイン）
 2. 正しい入力ディレクトリパスを指定（`--input ./kindle-captures/<ASIN>/`）
 
 ## 出力ファイル

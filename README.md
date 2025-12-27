@@ -39,6 +39,8 @@ pip install -r requirements.txt
 3. Amazonアカウントでログイン
 4. Chromeを終了
 
+※ デフォルトはログイン済みの既存プロファイルです。Chrome起動中でプロファイルロックが発生した場合は、自動的に `~/Library/Application Support/Google/Chrome-Kindle` にフォールバックします（初回ログインが必要）。
+
 ### 3. スクリーンショット取得
 
 ```bash
@@ -68,11 +70,14 @@ python src/capture.py --asin <ASIN>
 | オプション | 説明 | デフォルト |
 |----------|------|-----------|
 | `--asin` | 書籍ASIN（必須） | - |
-| `--layout` | single/double | single |
+| `--layout` | single/double | double |
 | `--output` | 出力ディレクトリ | ./kindle-captures/{ASIN}/ |
 | `--start` | 開始位置 | 最初 |
 | `--end` | 終了位置 | 最後 |
 | `--headless` | ヘッドレスモード | False |
+| `--max-pages` | 取得ページ数の上限 | 無制限 |
+| `--viewport-width` | ブラウザのviewport幅 | 3840 |
+| `--viewport-height` | ブラウザのviewport高さ | 2160 |
 | `--chrome-profile` | Chromeプロファイルパス | ~/Library/Application Support/Google/Chrome |
 
 #### 例
@@ -125,11 +130,17 @@ python src/create_pdf.py --input ./kindle-captures/B0DSKPTJM5/ --resize 0.7 --qu
 ```yaml
 browser:
   chrome_profile: "~/Library/Application Support/Google/Chrome"
+  fallback_profile: "~/Library/Application Support/Google/Chrome-Kindle"
   headless: false
   timeout: 30000
+  wait_for_login: true
+  login_timeout: 600000
+  viewport_width: 3840
+  viewport_height: 2160
 
 capture:
-  default_layout: "single"
+  default_layout: "double"
+  max_pages: null
   wait_strategy: "hybrid"  # location_change, fixed, hybrid
   wait_timeout: 3.0
   screenshot_format: "png"
@@ -145,12 +156,12 @@ pdf:
 ```
 kindle-app/
 ├── .claude/
-│   ├── settings.local.json
-│   └── skills/
-│       └── kindle-capture/
-│           ├── SKILL.md           # Claude Code Skill定義
-│           ├── REFERENCE.md       # 詳細リファレンス
-│           └── EXAMPLES.md        # 使用例と会話例
+│   └── settings.local.json
+├── .skills/
+│   └── kindle-capture/
+│       ├── SKILL.md           # Claude/Codex Skill定義
+│       ├── REFERENCE.md       # 詳細リファレンス
+│       └── EXAMPLES.md        # 使用例と会話例
 ├── src/
 │   ├── __init__.py
 │   ├── capture.py           # スクリーンショット取得
