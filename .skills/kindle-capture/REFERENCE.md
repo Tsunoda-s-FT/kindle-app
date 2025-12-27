@@ -45,6 +45,7 @@
 - 使用するChromeプロファイルのパス
 - デフォルト: `~/Library/Application Support/Google/Chrome`（macOS）
 - Kindleにログイン済みのプロファイルを指定
+- **推奨**: `/tmp/kindle-test-profile`（既存Chromeとの競合回避）
 
 **`--config <ファイル>`**
 - 設定ファイルのパス
@@ -55,19 +56,19 @@
 
 ```bash
 # 基本的な使い方
-python src/capture.py --asin B0DSKPTJM5
+python src/capture.py --asin B0DSKPTJM5 --chrome-profile /tmp/kindle-test-profile
 
 # 見開きレイアウト
-python src/capture.py --asin B0DSKPTJM5 --layout double
+python src/capture.py --asin B0DSKPTJM5 --chrome-profile /tmp/kindle-test-profile --layout double
 
 # 範囲指定
-python src/capture.py --asin B0DSKPTJM5 --start 1000 --end 5000
+python src/capture.py --asin B0DSKPTJM5 --chrome-profile /tmp/kindle-test-profile --start 1000 --end 5000
 
 # カスタム出力先
-python src/capture.py --asin B0DSKPTJM5 --output ./my-captures/
+python src/capture.py --asin B0DSKPTJM5 --chrome-profile /tmp/kindle-test-profile --output ./my-captures/
 
 # ヘッドレスモード
-python src/capture.py --asin B0DSKPTJM5 --headless
+python src/capture.py --asin B0DSKPTJM5 --chrome-profile /tmp/kindle-test-profile --headless
 ```
 
 ### create_pdf.py - PDF生成
@@ -206,6 +207,39 @@ pdf:
 **`default_resize`**
 - デフォルトのリサイズ比率（0.1-1.0）
 - デフォルト: `1.0`（リサイズなし）
+
+## ブラウザ自動化APIマッピング
+
+各AIエージェントで使用するブラウザ自動化ツールのマッピングです。
+
+### 操作別ツール対応表
+
+| 操作 | Claude Code | Codex CLI |
+|------|-------------|-----------|
+| **タブ/ページ管理** | `mcp__claude-in-chrome__tabs_context_mcp` | `mcp__chrome-devtools__new_page` |
+| **ナビゲート** | `mcp__claude-in-chrome__navigate` | `mcp__chrome-devtools__navigate_page` |
+| **ページ読み取り** | `mcp__claude-in-chrome__read_page` | `mcp__chrome-devtools__take_snapshot` |
+| **要素検索** | `mcp__claude-in-chrome__find` | スナップショットから特定 |
+| **フォーム入力** | `mcp__claude-in-chrome__form_input` | `mcp__chrome-devtools__fill` |
+| **クリック** | `mcp__claude-in-chrome__computer` | `mcp__chrome-devtools__click` |
+| **キー入力** | `mcp__claude-in-chrome__computer` | `mcp__chrome-devtools__press_key` |
+| **スクリプト実行** | `mcp__claude-in-chrome__javascript_tool` | `mcp__chrome-devtools__evaluate_script` |
+
+### 新規エージェント追加時のガイド
+
+新しいAIエージェントでこのスキルを使用する場合：
+
+1. **必要な機能の確認**:
+   - ページナビゲーション
+   - DOM読み取り
+   - フォーム入力
+   - クリック/キー入力
+
+2. **APIマッピングの作成**:
+   - 上記の操作別ツール対応表を参考に、エージェント固有のツール名を特定
+
+3. **SKILL.mdへの追加**:
+   - 「ブラウザ自動化によるASIN検索」セクションに新規エージェントを追加
 
 ## KindleRenderer API
 
@@ -484,5 +518,5 @@ src/
 
 ## 関連ドキュメント
 
-- [SKILL.md](../SKILL.md) - 基本的な使い方とクイックスタート
+- [SKILL.md](SKILL.md) - 基本的な使い方とクイックスタート
 - [EXAMPLES.md](EXAMPLES.md) - 実践的な使用例とシナリオ

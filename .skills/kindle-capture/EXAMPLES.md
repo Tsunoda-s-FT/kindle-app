@@ -1,14 +1,14 @@
 # Kindle Capture - 使用例
 
-このドキュメントでは、Kindle Captureツールの実践的な使用例、Codexでの会話例、複雑なシナリオへの対応方法を紹介します。
+このドキュメントでは、Kindle Captureツールの実践的な使用例、AIアシスタントでの会話例、複雑なシナリオへの対応方法を紹介します。
 
-## Codexでの会話例
+## AIアシスタントでの会話例
 
 ### 例0: 書籍名からASINを検索してPDF化（最も一般的なケース）
 
 **ユーザー**: githubの本をPDF化して
 
-**Codex**: Kindleライブラリで「github」を検索します。
+**AIアシスタント**: Kindleライブラリで「github」を検索します。
 
 （ブラウザ自動化ツールでhttps://read.amazon.co.jp/kindle-libraryにアクセス、検索実行）
 
@@ -26,10 +26,10 @@
 
 **ユーザー**: 1番で
 
-**Codex**: 承知しました。「GitHub実践入門」（ASIN: B0DSKPTJM5）をキャプチャします。
+**AIアシスタント**: 承知しました。「GitHub実践入門」（ASIN: B0DSKPTJM5）をキャプチャします。
 
 ```bash
-python src/capture.py --asin B0DSKPTJM5
+python src/capture.py --asin B0DSKPTJM5 --chrome-profile /tmp/kindle-test-profile
 ```
 
 （キャプチャ実行中...）
@@ -48,14 +48,14 @@ PDFファイル `B0DSKPTJM5.pdf` を生成しました。カレントディレ�
 
 **ユーザー**: Kindleの本をPDF化してください
 
-**Codex**: 書籍のASINコードを教えてください。ASINはAmazonの商品URLの`/dp/`の後に続く英数字です（例: `B0DSKPTJM5`）。
+**AIアシスタント**: 書籍のASINコードを教えてください。ASINはAmazonの商品URLの`/dp/`の後に続く英数字です（例: `B0DSKPTJM5`）。
 
 **ユーザー**: B0DSKPTJM5です
 
-**Codex**: 承知しました。書籍（ASIN: B0DSKPTJM5）のキャプチャを開始します。
+**AIアシスタント**: 承知しました。書籍（ASIN: B0DSKPTJM5）のキャプチャを開始します。
 
 ```bash
-python src/capture.py --asin B0DSKPTJM5
+python src/capture.py --asin B0DSKPTJM5 --chrome-profile /tmp/kindle-test-profile
 ```
 
 （キャプチャ実行中...）
@@ -74,14 +74,14 @@ PDFファイル `B0DSKPTJM5.pdf` を生成しました。カレントディレ�
 
 **ユーザー**: この本の位置1000から5000までをPDF化して
 
-**Codex**: 承知しました。ASINコードを教えてください。
+**AIアシスタント**: 承知しました。ASINコードを教えてください。
 
 **ユーザー**: B0DSKPTJM5
 
-**Codex**: 位置1000から5000までの範囲をキャプチャします。
+**AIアシスタント**: 位置1000から5000までの範囲をキャプチャします。
 
 ```bash
-python src/capture.py --asin B0DSKPTJM5 --start 1000 --end 5000
+python src/capture.py --asin B0DSKPTJM5 --chrome-profile /tmp/kindle-test-profile --start 1000 --end 5000
 ```
 
 （キャプチャ実行中...）
@@ -100,10 +100,10 @@ PDFファイル `B0DSKPTJM5.pdf` を生成しました。
 
 **ユーザー**: 見開きでこの本をキャプチャしてください。ASIN: B0DSKPTJM5
 
-**Codex**: 見開きレイアウトでキャプチャします。
+**AIアシスタント**: 見開きレイアウトでキャプチャします。
 
 ```bash
-python src/capture.py --asin B0DSKPTJM5 --layout double
+python src/capture.py --asin B0DSKPTJM5 --chrome-profile /tmp/kindle-test-profile --layout double
 ```
 
 （キャプチャ実行中...）
@@ -122,14 +122,14 @@ PDFファイル `B0DSKPTJM5.pdf` を生成しました。
 
 **ユーザー**: スマホで読みやすいように軽量化してPDF化してください
 
-**Codex**: モバイル最適化（70%サイズ、品質80）でPDFを生成します。ASINを教えてください。
+**AIアシスタント**: モバイル最適化（70%サイズ、品質80）でPDFを生成します。ASINを教えてください。
 
 **ユーザー**: B0DSKPTJM5
 
-**Codex**: まずスクリーンショットをキャプチャします。
+**AIアシスタント**: まずスクリーンショットをキャプチャします。
 
 ```bash
-python src/capture.py --asin B0DSKPTJM5
+python src/capture.py --asin B0DSKPTJM5 --chrome-profile /tmp/kindle-test-profile
 ```
 
 （キャプチャ実行中...）
@@ -148,14 +148,14 @@ python src/create_pdf.py --input ./kindle-captures/B0DSKPTJM5/ --resize 0.7 --qu
 
 **ユーザー**: この本を「プログラミング入門.pdf」という名前でPDF化して
 
-**Codex**: 承知しました。ASINを教えてください。
+**AIアシスタント**: 承知しました。ASINを教えてください。
 
 **ユーザー**: B0DSKPTJM5
 
-**Codex**: キャプチャを開始します。
+**AIアシスタント**: キャプチャを開始します。
 
 ```bash
-python src/capture.py --asin B0DSKPTJM5
+python src/capture.py --asin B0DSKPTJM5 --chrome-profile /tmp/kindle-test-profile
 ```
 
 （キャプチャ実行中...）
@@ -192,7 +192,7 @@ while IFS= read -r asin; do
     echo "Processing ASIN: $asin"
 
     # スクリーンショット取得
-    python src/capture.py --asin "$asin"
+    python src/capture.py --asin "$asin" --chrome-profile /tmp/kindle-test-profile
 
     # PDF生成
     python src/create_pdf.py --input "./kindle-captures/$asin/"
@@ -236,7 +236,7 @@ cat ./kindle-captures/B0DSKPTJM5/metadata.json | grep -A 3 '"page_number": 120'
 
 2. その位置から再開:
 ```bash
-python src/capture.py --asin B0DSKPTJM5 --start 6543
+python src/capture.py --asin B0DSKPTJM5 --chrome-profile /tmp/kindle-test-profile --start 6543
 ```
 
 3. 2つのディレクトリの画像を結合（必要に応じて）:
@@ -271,7 +271,7 @@ capture:
 
 **実行**:
 ```bash
-python src/capture.py --asin B0DSKPTJM5 --config ./config-slow-network.yaml
+python src/capture.py --asin B0DSKPTJM5 --chrome-profile /tmp/kindle-test-profile --config ./config-slow-network.yaml
 ```
 
 ---
@@ -282,7 +282,7 @@ python src/capture.py --asin B0DSKPTJM5 --config ./config-slow-network.yaml
 
 ```bash
 # 1. 通常キャプチャ
-python src/capture.py --asin B0DSKPTJM5
+python src/capture.py --asin B0DSKPTJM5 --chrome-profile /tmp/kindle-test-profile
 
 # 2. 最高品質でPDF生成（品質95、リサイズなし）
 python src/create_pdf.py --input ./kindle-captures/B0DSKPTJM5/ \
@@ -299,7 +299,7 @@ python src/create_pdf.py --input ./kindle-captures/B0DSKPTJM5/ \
 
 ```bash
 # 1. 一度だけスクリーンショット取得
-python src/capture.py --asin B0DSKPTJM5
+python src/capture.py --asin B0DSKPTJM5 --chrome-profile /tmp/kindle-test-profile
 
 # 2. PC用（高品質）
 python src/create_pdf.py --input ./kindle-captures/B0DSKPTJM5/ \
@@ -371,7 +371,7 @@ pkill -9 "Google Chrome"
 4. スクリプトを再実行
 
 **予防策**:
-- スクリプト実行前にChromeを閉じる
+- `--chrome-profile /tmp/kindle-test-profile` オプションを使用（推奨）
 - ヘッドレスモード（`--headless`）を使用
 
 ---
@@ -427,7 +427,7 @@ ls -la ./kindle-captures/B0DSKPTJM5/
 
 2. ディレクトリが存在しない場合、capture.pyを実行:
 ```bash
-python src/capture.py --asin B0DSKPTJM5
+python src/capture.py --asin B0DSKPTJM5 --chrome-profile /tmp/kindle-test-profile
 ```
 
 3. ディレクトリは存在するがPNGがない場合、capture.pyが正常終了したか確認
@@ -447,10 +447,10 @@ python src/capture.py --asin B0DSKPTJM5
 1. 範囲を分割してキャプチャ:
 ```bash
 # 前半（0-5000）
-python src/capture.py --asin B0DSKPTJM5 --start 0 --end 5000 --output ./kindle-captures/B0DSKPTJM5-part1/
+python src/capture.py --asin B0DSKPTJM5 --chrome-profile /tmp/kindle-test-profile --start 0 --end 5000 --output ./kindle-captures/B0DSKPTJM5-part1/
 
 # 後半（5001-10000）
-python src/capture.py --asin B0DSKPTJM5 --start 5001 --end 10000 --output ./kindle-captures/B0DSKPTJM5-part2/
+python src/capture.py --asin B0DSKPTJM5 --chrome-profile /tmp/kindle-test-profile --start 5001 --end 10000 --output ./kindle-captures/B0DSKPTJM5-part2/
 
 # PDFを個別に生成
 python src/create_pdf.py --input ./kindle-captures/B0DSKPTJM5-part1/ --output part1.pdf
@@ -487,5 +487,5 @@ python src/create_pdf.py --input ./kindle-captures/B0DSKPTJM5-part2/ --output pa
 
 ## 関連ドキュメント
 
-- [SKILL.md](../SKILL.md) - 基本的な使い方とクイックスタート
+- [SKILL.md](SKILL.md) - 基本的な使い方とクイックスタート
 - [REFERENCE.md](REFERENCE.md) - 詳細な技術リファレンスとAPI仕様
