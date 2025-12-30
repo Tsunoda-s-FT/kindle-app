@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a Kindle Web Reader automation tool that captures screenshots from Amazon Kindle books and converts them to PDF. It uses Playwright to control Chrome and interacts with the KindleRenderer JavaScript API.
+This is a Kindle automation tool that captures screenshots from Amazon Kindle books (Web Reader or macOS app) and converts them to PDF. Web mode uses Playwright to control Chrome and interacts with the KindleRenderer JavaScript API.
 
 ## Architecture
 
@@ -22,6 +22,10 @@ The tool follows a two-stage pipeline:
    - Optionally resizes/compresses images
    - Converts to PDF using img2pdf (lossless for PNG)
 
+3. **Local App Capture** (`src/capture_app.py`)
+   - Uses osascript/screencapture to capture the Kindle macOS app window
+   - Turns pages via key events and stops on duplicates or max pages
+
 **Key Components:**
 - `src/kindle_utils.py`: Browser control, KindleRenderer API wrappers, page load detection
 - `config.yaml`: Runtime configuration (wait strategies, timeouts, quality settings)
@@ -37,6 +41,10 @@ pip install -r requirements.txt
 # Capture a book (two-step process)
 python src/capture.py --asin <ASIN> --chrome-profile /tmp/kindle-test-profile
 python src/create_pdf.py --input ./kindle-captures/<ASIN>/
+
+# Capture via Kindle macOS app
+python src/capture_app.py --book "<TITLE>"
+python src/create_pdf.py --input "./kindle-captures/<TITLE>/"
 
 # Partial capture (by position range)
 python src/capture.py --asin <ASIN> --start 1000 --end 5000 --chrome-profile /tmp/kindle-test-profile
@@ -93,6 +101,7 @@ This tool is also a Claude Code Skill (`.claude/skills/kindle-capture/`). When u
 - **System Chrome required** (not Chromium)
 - **Reflow books only** (fixed-layout and comics unsupported)
 - **2K viewport** hardcoded (2560x1440) for consistent rendering
+- **Local capture requires screen recording/accessibility permissions**
 
 ## Configuration
 
@@ -109,7 +118,7 @@ Increase `wait_timeout` to 5.0+ for slow networks.
 
 ```
 kindle-captures/
-└── {ASIN}/
+└── {ASIN or book}/
     ├── page_0001.png
     ├── page_0002.png
     ├── ...

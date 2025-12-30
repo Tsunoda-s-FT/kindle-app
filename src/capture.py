@@ -25,6 +25,7 @@ from kindle_utils import (
     next_page,
     has_next_page,
     get_current_location,
+    get_page_position_range,
     get_position_range,
     wait_for_page_load,
     detect_login_state,
@@ -58,7 +59,7 @@ def load_config(config_path: str = "config.yaml") -> dict:
 
 async def capture_book(
     asin: str,
-    layout: str = "single",
+    layout: str = "double",
     output_dir: Optional[str] = None,
     start_pos: Optional[int] = None,
     end_pos: Optional[int] = None,
@@ -197,6 +198,11 @@ async def capture_book(
         # Capture loop
         page_num = 1
         captured_positions = []
+        last_progress_pos = None
+        stagnant_count = 0
+        no_next_count = 0
+        max_stagnant = 3
+        max_no_next = 3
 
         logger.info("Starting capture...")
 
@@ -210,17 +216,63 @@ async def capture_book(
                 location = await get_current_location(page)
                 current_pos = location.get('current', 0) if location else 0
 
-                # Check if beyond end position
+                # Prefer page position range when available
+                position_range = await get_page_position_range(page)
+                current_top = None
+                current_bottom = None
+                if position_range:
+                    current_top, current_bottom = position_range
+                    if current_bottom is not None and current_bottom <= 0:
+                        current_top = None
+                        current_bottom = None
+
+                # Fallback to KindleRenderer.getPosition if needed
                 actual_pos = None
-                if end_pos:
+                if end_pos and current_bottom is None:
                     try:
                         actual_pos = await page.evaluate("KindleRenderer.getPosition?.()")
+                        if isinstance(actual_pos, (int, float)) and actual_pos > 0:
+                            actual_pos = int(actual_pos)
+                        else:
+                            actual_pos = None
                     except Exception:
                         actual_pos = None
 
-                    check_pos = actual_pos if actual_pos is not None else current_pos
-                    if check_pos and check_pos > end_pos:
-                        logger.info(f"Reached end position: {check_pos} > {end_pos}")
+                # Track progress to detect stalled navigation
+                progress_pos = None
+                progress_source = None
+                if current_bottom is not None and current_bottom > 0:
+                    progress_pos = int(current_bottom)
+                    progress_source = "range"
+                elif actual_pos is not None:
+                    progress_pos = actual_pos
+                    progress_source = "position"
+                elif current_pos:
+                    progress_pos = current_pos
+                    progress_source = "location"
+
+                if progress_pos is not None:
+                    if last_progress_pos is not None and progress_pos <= last_progress_pos:
+                        stagnant_count += 1
+                    else:
+                        stagnant_count = 0
+
+                    if progress_source in ("range", "position") and stagnant_count >= max_stagnant:
+                        logger.info("No page progress detected; stopping capture.")
+                        break
+
+                    last_progress_pos = progress_pos
+
+                # Check if beyond end position before capturing
+                end_check_pos = None
+                if end_pos:
+                    if current_bottom is not None and current_bottom > 0:
+                        end_check_pos = int(current_bottom)
+                    elif actual_pos is not None:
+                        end_check_pos = actual_pos
+
+                    if end_check_pos is not None and end_check_pos > end_pos:
+                        logger.info(f"Reached end position: {end_check_pos} > {end_pos}")
                         break
 
                 # Take screenshot
@@ -250,10 +302,28 @@ async def capture_book(
                     logger.info(f"Reached max pages: {max_pages}")
                     break
 
+                # Stop after capturing the last page based on position/location
+                if end_pos:
+                    if end_check_pos is not None and end_check_pos >= end_pos:
+                        logger.info(f"Reached end position: {end_check_pos} >= {end_pos}")
+                        break
+                if location and location.get('total') and location.get('current'):
+                    if location['current'] >= location['total']:
+                        logger.info("Reached end of book based on location")
+                        break
+
                 # Check for next page
                 has_next = await has_next_page(page)
                 if not has_next:
-                    logger.info("Reached end of book")
+                    no_next_count += 1
+                else:
+                    no_next_count = 0
+
+                if progress_pos is None and no_next_count >= max_no_next:
+                    logger.info("Reached end of book (no next page detected repeatedly)")
+                    break
+                if progress_source == "location" and no_next_count >= max_no_next and stagnant_count >= max_stagnant:
+                    logger.info("Reached end of book (location stalled with no next page)")
                     break
 
                 # Navigate to next page

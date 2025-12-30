@@ -1,7 +1,7 @@
-"""Kindle Web Reader Screenshot Automation
+"""Kindle Screenshot Automation (Web/App)
 
 This package provides tools to capture screenshots from Kindle Web Reader
-and convert them to PDF format.
+or the Kindle macOS app and convert them to PDF format.
 """
 
 __version__ = "0.1.0"

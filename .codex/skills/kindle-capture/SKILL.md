@@ -17,14 +17,16 @@ Kindle Web Readerから書籍のスクリーンショットを自動取得し、
 - ローカルmacOSアプリで取得する場合、ユーザーが書籍タイトルを指定しなくても**AIが自動取得**する。
   - `capture_cover.py --json` → `view_image`で表紙タイトル確認 → 取得タイトルを `--book` に使用
 - 取得に失敗・判別不能な場合のみ、最小限の確認を行う。
+- **ローカルキャプチャは再実行で上書きされるため、`capture_app.py` は必ず新しい出力先を指定する**（例: `--output ./kindle-captures/<BOOK_TITLE>__run_YYYYMMDD_HHMMSS`）。
 - **PDF生成前に、`src/dedupe_tail.py` で巻末末尾の重複ページを必ず検出・削除する**（末尾の連続ページで同一画像が続く場合は重複として除去する）。
 - **PDF生成後は、親フォルダを日本語の書籍タイトル名にし、その直下にPDFと画像フォルダを配置してGoogle Driveへ必ず移動する**（`/Users/tsunoda/Library/CloudStorage/GoogleDrive-tsunoda799@gmail.com/マイドライブ/Kindle`）。
 
 ## タイムアウトの目安
 
 - 300ページ超の書籍は、一般的に約20分かかります。短いタイムアウト設定は避けてください。
-- **エージェントはコマンド実行のタイムアウトを設定しない**（ツール側のtimeoutも指定しない）。完走まで待機する。
-- 例外的に上限が必要な場合は、**ユーザー合意の上で**十分長い値（目安30分以上）を設定する。
+- **エージェントはキャプチャ系コマンドのツール実行タイムアウトを30分（1,800,000ms）に固定**する。  
+  例: `timeout_ms=1800000` を必ず指定して実行する。
+- さらに長い上限が必要な場合は、**ユーザー合意の上で**十分長い値に延長する。
 
 ## 前提条件
 
@@ -121,13 +123,13 @@ python src/capture_cover.py --json
 
 ```bash
 source venv/bin/activate
-python src/capture_app.py --book "<BOOK_TITLE>"
+python src/capture_app.py --book "<BOOK_TITLE>" --output "./kindle-captures/<BOOK_TITLE>__run_YYYYMMDD_HHMMSS"
 # 末尾の重複ページを削除してからPDF生成（スクリプト使用）
-python src/dedupe_tail.py --input ./kindle-captures/<BOOK_TITLE>/
-python src/create_pdf.py --input ./kindle-captures/<BOOK_TITLE>/
+python src/dedupe_tail.py --input "./kindle-captures/<BOOK_TITLE>__run_YYYYMMDD_HHMMSS/"
+python src/create_pdf.py --input "./kindle-captures/<BOOK_TITLE>__run_YYYYMMDD_HHMMSS/"
 # PDF生成後にGoogle Driveへ移動（PDF+画像フォルダ）
-mv "./<BOOK_TITLE>.pdf" "/Users/tsunoda/Library/CloudStorage/GoogleDrive-tsunoda799@gmail.com/マイドライブ/Kindle/<BOOK_TITLE>/<BOOK_TITLE>.pdf"
-mv "./kindle-captures/<BOOK_TITLE>/" "/Users/tsunoda/Library/CloudStorage/GoogleDrive-tsunoda799@gmail.com/マイドライブ/Kindle/<BOOK_TITLE>/画像_<RUN_ID>"
+mv "./<BOOK_TITLE>__run_YYYYMMDD_HHMMSS.pdf" "/Users/tsunoda/Library/CloudStorage/GoogleDrive-tsunoda799@gmail.com/マイドライブ/Kindle/<BOOK_TITLE>/<BOOK_TITLE>.pdf"
+mv "./kindle-captures/<BOOK_TITLE>__run_YYYYMMDD_HHMMSS/" "/Users/tsunoda/Library/CloudStorage/GoogleDrive-tsunoda799@gmail.com/マイドライブ/Kindle/<BOOK_TITLE>/画像_YYYYMMDD_HHMMSS"
 ```
 
 ## コマンドオプション
@@ -515,8 +517,8 @@ python src/trim.py --input ./kindle-captures/<ASIN>/ --crop "310,120,3270,1950"
 1. Kindleアプリで対象書籍を前面表示
 2. 書籍名が不明なら `python src/capture_cover.py --json` で表紙を取得
 3. `view_image` で表紙を読み取り、適切な書籍名で命名
-4. `python src/capture_app.py --book "<BOOK_TITLE>"` を実行
-5. `python src/create_pdf.py --input ./kindle-captures/<BOOK_TITLE>/` を実行
+4. `python src/capture_app.py --book "<BOOK_TITLE>" --output "./kindle-captures/<BOOK_TITLE>__run_YYYYMMDD_HHMMSS"` を実行
+5. `python src/create_pdf.py --input "./kindle-captures/<BOOK_TITLE>__run_YYYYMMDD_HHMMSS/"` を実行
 
 **「この本の100ページ目から200ページ目までPDF化」**:
 1. ページ番号とKindleの位置番号の違いを説明（必要に応じて）
@@ -602,6 +604,17 @@ capture:
 **対処法**:
 1. 先に `source venv/bin/activate && python src/capture.py --asin <ASIN>` を実行（フォールバック時は初回ログイン）
 2. 正しい入力ディレクトリパスを指定（`--input ./kindle-captures/<ASIN>/`）
+
+### 中断後の再実行で上書きされる
+
+**症状**: 再実行すると `page_0001.png` などが既存データを上書きする
+
+**原因**: `capture_app.py` はページ番号を固定名で保存するため、同じ出力先に再実行すると上書きされる
+
+**対処法**:
+1. **必ず新しい出力先を指定**して再実行する  
+   例: `--output "./kindle-captures/<BOOK_TITLE>__run_YYYYMMDD_HHMMSS"`
+2. 既存データを残したい場合は、再実行前にディレクトリを退避（リネーム）する
 
 ## 出力ファイル
 

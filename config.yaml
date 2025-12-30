@@ -12,11 +12,34 @@ browser:
 
 capture:
   default_layout: "double"  # single or double
+  max_pages: null  # unlimited if null
   wait_strategy: "hybrid"  # location_change, fixed, or hybrid
   wait_timeout: 3.0  # seconds
   screenshot_format: "png"
   output_dir: "./kindle-captures"
 
+app_capture:
+  app_name: "Amazon Kindle"
+  process_name: "Kindle"
+  window_title: null  # Window title filter (optional)
+  capture_region: null  # "x,y,width,height" overrides window detection
+  scale: 1.0  # Use 2.0 for Retina if needed
+  output_dir: "./kindle-captures"
+  wait_after_turn: 0.6  # seconds
+  initial_wait: 0.4  # seconds
+  max_pages: null  # unlimited if null
+  duplicate_threshold: 3  # Hamming distance threshold
+  duplicate_diff_mean: 3.0  # Mean-diff threshold
+  duplicate_size_kb: null  # Optional size delta threshold
+  duplicate_size_ratio: 0.02  # Optional size delta ratio threshold
+  duplicate_limit: 5  # stop after consecutive duplicates
+  min_pages: 2  # minimum pages before duplicate stop applies
+  next_key: "right"  # right, left, space, pagedown
+  log_file: null  # Optional log file path
+
 pdf:
   default_quality: 85  # JPEG quality (1-100)
   default_resize: 1.0  # Resize ratio (0.1-1.0, 1.0 = no resize)
+
+trim:
+  default_output_subdir: "trimmed"  # Subdirectory name for trimmed images

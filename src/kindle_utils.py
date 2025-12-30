@@ -394,6 +394,28 @@ async def get_current_location(page: Page) -> dict:
         return {}
 
 
+async def get_page_position_range(page: Page) -> Optional[Tuple[int, int]]:
+    """
+    Get current page position range from KindleRenderer.
+
+    Args:
+        page: Playwright Page object
+
+    Returns:
+        Tuple[int, int]: (current_top, current_bottom) or None if unavailable
+    """
+    try:
+        position_range = await page.evaluate("KindleRenderer.getPagePositionRange?.()")
+        if isinstance(position_range, dict):
+            current_top = position_range.get("currentTopOfPage")
+            current_bottom = position_range.get("currentBottomOfPage")
+            if isinstance(current_top, (int, float)) and isinstance(current_bottom, (int, float)):
+                return (int(current_top), int(current_bottom))
+    except Exception as e:
+        logger.debug(f"Failed to get page position range: {e}")
+    return None
+
+
 async def get_position_range(page: Page) -> Tuple[int, int]:
     """
     Get position range (min, max) from KindleRenderer.
@@ -520,9 +542,19 @@ async def wait_for_page_load(
             # Wait for location to change
             await page.wait_for_function(
                 f"""() => {{
-                    const text = document.body.textContent;
-                    const match = text.match(/Location (\\d+) of/);
-                    return match && parseInt(match[1]) !== {initial_current};
+                    const text = document.body.textContent || "";
+                    const match = text.match(/(?:Location|位置)\\s*[:：]?\\s*(\\d+)\\s*(?:of|\\/|の)/);
+                    if (match) {{
+                        return parseInt(match[1], 10) !== {initial_current};
+                    }}
+                    try {{
+                        const pos = (typeof KindleRenderer !== 'undefined' && KindleRenderer.getPosition)
+                            ? KindleRenderer.getPosition()
+                            : null;
+                        return (typeof pos === 'number' && pos !== {initial_current});
+                    }} catch (e) {{
+                        return false;
+                    }}
                 }}""",
                 timeout=timeout * 1000
             )
@@ -553,9 +585,19 @@ async def wait_for_page_load(
                 try:
                     await page.wait_for_function(
                         f"""() => {{
-                            const text = document.body.textContent;
-                            const match = text.match(/Location (\\d+) of/);
-                            return match && parseInt(match[1]) !== {initial_current};
+                            const text = document.body.textContent || "";
+                            const match = text.match(/(?:Location|位置)\\s*[:：]?\\s*(\\d+)\\s*(?:of|\\/|の)/);
+                            if (match) {{
+                                return parseInt(match[1], 10) !== {initial_current};
+                            }}
+                            try {{
+                                const pos = (typeof KindleRenderer !== 'undefined' && KindleRenderer.getPosition)
+                                    ? KindleRenderer.getPosition()
+                                    : null;
+                                return (typeof pos === 'number' && pos !== {initial_current});
+                            }} catch (e) {{
+                                return false;
+                            }}
                         }}""",
                         timeout=timeout * 1000
                     )
